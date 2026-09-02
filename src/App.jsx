@@ -21,21 +21,37 @@ const GroupsExperience = lazy(() => import('./features/GroupsExperience.jsx'));
 const NotificationCenter = lazy(() => import('./features/NotificationCenter.jsx'));
 const ExamsExperience = lazy(() => import('./features/ExamsExperience.jsx'));
 
-const NAV = [
-  ['Home', I.House],
-  ['Today', I.Target],
-  ['Focus', I.Timer],
-  ['Plan', I.CalendarDays],
-  ['Tasks', I.CheckSquare],
-  ['Progress', I.ChartNoAxesCombined],
-  ['Syllabus', I.BookOpen],
-  ['Revision', I.RotateCcw],
-  ['Exams', I.Trophy],
-  ['Mocks', I.BarChart3],
-  ['Groups', I.Users],
-  ['Settings', I.Settings]
+const NAV_SECTIONS = [
+  {
+    title: 'OVERVIEW',
+    items: [
+      ['Home', I.House, 'Home'],
+      ['Today', I.Target, 'Today'],
+      ['Focus', I.Timer, 'Focus'],
+      ['Plan', I.CalendarDays, 'Plan'],
+      ['Progress', I.ChartNoAxesCombined, 'Progress']
+    ]
+  },
+  {
+    title: 'STUDY VAULT',
+    items: [
+      ['Tasks', I.CheckSquare, 'Tasks'],
+      ['Syllabus', I.BookOpen, 'Syllabus'],
+      ['Revision', I.RotateCcw, 'Revision'],
+      ['Exams', I.Trophy, 'Exams'],
+      ['Mocks', I.BarChart3, 'Mocks']
+    ]
+  },
+  {
+    title: 'SYSTEM',
+    items: [
+      ['Groups', I.Users, 'Circles'],
+      ['Settings', I.Settings, 'Settings']
+    ]
+  }
 ];
 
+const ALL_NAV_NAMES = NAV_SECTIONS.flatMap(s => s.items.map(x => x[0]));
 const percent = (a, b) => (b ? Math.round(Math.min(1, a / b) * 100) : 0);
 
 function Onboarding() {
@@ -118,7 +134,7 @@ function Shell() {
   const { state, patch } = useStore();
   const [page, setPage] = useState(() => {
     const hash = location.hash.slice(1);
-    return NAV.some(([name]) => name === hash) ? hash : 'Home';
+    return ALL_NAV_NAMES.includes(hash) ? hash : 'Home';
   });
   const [palette, setPalette] = useState(false);
   const [notifications, setNotifications] = useState(false);
@@ -157,7 +173,7 @@ function Shell() {
   useEffect(() => {
     const onHash = () => {
       const next = location.hash.slice(1);
-      if (NAV.some(([name]) => name === next)) setPage(next);
+      if (ALL_NAV_NAMES.includes(next)) setPage(next);
     };
     addEventListener('hashchange', onHash);
     return () => removeEventListener('hashchange', onHash);
@@ -194,27 +210,25 @@ function Shell() {
 
   return (
     <div className="app">
-      {/* Background Animated Aurora Orbs */}
-      <div className="aurora-backdrop" aria-hidden="true">
-        <div className="aurora-orb-1" />
-        <div className="aurora-orb-2" />
-        <div className="aurora-orb-3" />
-      </div>
-
       <aside>
         <div className="brand" onClick={() => navigate('Home')}>
           <BrandLogo size="md" />
         </div>
         <nav>
-          {NAV.map(([name, Icon]) => (
-            <button
-              key={name}
-              className={page === name ? 'active' : ''}
-              onClick={() => navigate(name)}
-            >
-              <Icon />
-              {name}
-            </button>
+          {NAV_SECTIONS.map(section => (
+            <div className="nav-section" key={section.title}>
+              <div className="nav-section-title">{section.title}</div>
+              {section.items.map(([name, Icon, label]) => (
+                <button
+                  key={name}
+                  className={page === name ? 'active' : ''}
+                  onClick={() => navigate(name)}
+                >
+                  <Icon />
+                  {label || name}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="aside-foot">
@@ -248,7 +262,7 @@ function Shell() {
           <span>Search or run a command…</span>
           <kbd>⌘ K</kbd>
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="header-actions">
           <button
             className="icon-button notification-button"
             aria-label="Notifications"
@@ -256,10 +270,6 @@ function Shell() {
           >
             <I.Inbox />
             {hasUnread && <i />}
-          </button>
-          <button className="start" onClick={() => navigate('Focus')}>
-            <I.Play />
-            <span>Start Focus</span>
           </button>
         </div>
       </header>
@@ -271,7 +281,12 @@ function Shell() {
       </main>
 
       <div className="mobile-nav">
-        {NAV.slice(0, 4).map(([name, Icon]) => (
+        {[
+          ['Home', I.House],
+          ['Today', I.Target],
+          ['Focus', I.Timer],
+          ['Tasks', I.CheckSquare]
+        ].map(([name, Icon]) => (
           <button
             key={name}
             className={page === name ? 'active' : ''}
@@ -281,11 +296,7 @@ function Shell() {
             <small>{name}</small>
           </button>
         ))}
-        <button
-          className=""
-          onClick={() => setPalette(true)}
-          aria-label="More views"
-        >
+        <button onClick={() => setPalette(true)} aria-label="More views">
           <I.SlidersHorizontal />
           <small>More</small>
         </button>
@@ -399,37 +410,8 @@ function Palette({ close, go }) {
   );
 }
 
-function MetricTile({ label, value, note, icon: Icon, color = 'var(--accent)' }) {
-  return (
-    <div className="metric-tile">
-      <div className="metric-tile-head">
-        <span>{label}</span>
-        <div className="metric-icon-wrap" style={{ background: `${color}18`, color }}>
-          <Icon />
-        </div>
-      </div>
-      <b>{value}</b>
-      {note && <small>{note}</small>}
-    </div>
-  );
-}
-
-function Empty({ title, text, action, onClick }) {
-  return (
-    <div className="empty">
-      <h3>{title}</h3>
-      <p>{text}</p>
-      {action && (
-        <button className="primary" style={{ padding: '8px 16px', fontSize: 13 }} onClick={onClick}>
-          {action}
-        </button>
-      )}
-    </div>
-  );
-}
-
 function SubjectDot({ color }) {
-  return <i className="subject-dot" style={{ background: color || '#777', color: color || '#777' }} />;
+  return <i className="subject-dot" style={{ background: color || 'var(--accent)' }} />;
 }
 
 function Home({ go }) {
@@ -442,15 +424,15 @@ function Home({ go }) {
   const target = (state.profile.targetMinutes || 360) * 60000;
   const pct = percent(today.duration, target);
 
-  // SVG Gauge calculations
-  const radius = 40;
+  // Precision Chrono Halo calculations
+  const radius = 58;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (pct / 100) * circumference;
 
-  const upcoming = [...state.tasks]
-    .filter(t => !t.done)
-    .sort((a, b) => (a.dueAt || Infinity) - (b.dueAt || Infinity))
-    .slice(0, 3);
+  const activeTasks = state.tasks.filter(t => !t.done);
+  const nowPriorityTask = activeTasks.sort((a, b) => (a.dueAt || Infinity) - (b.dueAt || Infinity))[0];
+  const upcomingTasks = activeTasks.slice(1, 4);
+  const dueRevisions = state.revisionItems.filter(r => r.status !== 'COMPLETED').slice(0, 2);
 
   const week = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -465,238 +447,226 @@ function Home({ go }) {
     };
   });
 
-  const max = Math.max(...week.map(x => x.value), 1);
-  const strongest = state.subjects
-    .map(s => ({
-      ...s,
-      ms: state.sessions
-        .filter(x => x.subjectId === s.id)
-        .reduce((a, x) => a + (x.duration || 0), 0)
-    }))
-    .sort((a, b) => b.ms - a.ms)[0];
+  const maxWeek = Math.max(...week.map(x => x.value), 1);
+
+  // Subject distribution
+  const totalSubjectMs = state.sessions.reduce((acc, s) => acc + (s.duration || 0), 0);
+  const subjectDistribution = state.subjects.map(s => {
+    const ms = state.sessions
+      .filter(x => x.subjectId === s.id)
+      .reduce((a, x) => a + (x.duration || 0), 0);
+    return { ...s, ms, pct: totalSubjectMs ? Math.round((ms / totalSubjectMs) * 100) : 0 };
+  }).filter(s => s.ms > 0);
 
   return (
     <>
-      <section className="hero">
-        <div>
-          <div className="hero-live-badge">
-            <i className="hero-live-beacon" />
-            <span>STUDY CYCLE ACTIVE • {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}</span>
-          </div>
-          <h1 className="gradient-text">
-            Good{' '}
-            {new Date().getHours() < 12
-              ? 'morning'
-              : new Date().getHours() < 18
-              ? 'afternoon'
-              : 'evening'}
-            , {state.profile.name || 'Student'}.
-          </h1>
-          <p>
-            {today.duration
-              ? `${formatDuration(today.duration)} focused study recorded today. Stay with the next clear action.`
-              : 'Your study momentum starts with one single focused session.'}
-          </p>
+      {/* 1. Header & Live Time Anchor */}
+      <div className="cockpit-header">
+        <div className="cockpit-date-tag">
+          <i className="cockpit-live-pulse" />
+          <span>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}</span>
+          <span style={{ opacity: 0.4 }}>•</span>
+          <span>STUDY CYCLE ACTIVE</span>
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button className="primary big" onClick={() => go('Focus')}>
-            <I.Play />
-            <span>Start Focus</span>
-          </button>
-        </div>
-      </section>
+        <span className="cockpit-reset-hint">
+          Quota resets at {String(state.profile.resetHour).padStart(2, '0')}:00
+        </span>
+      </div>
 
-      {/* Centerpiece Today's Velocity & Target Card */}
-      <section className="today panel">
-        <div className="panel-head">
-          <div>
-            <span className="eyebrow">
-              TODAY'S TARGET · RESETS {String(state.profile.resetHour).padStart(2, '0')}:00
-            </span>
-            <h2>
-              {formatDuration(today.duration)}{' '}
-              <small>of {formatDuration(target)} target</small>
-            </h2>
-          </div>
-
-          {/* High-Tech Glowing Gauge Ring */}
-          <div className="gauge-wrapper" aria-label={`${pct}% daily target complete`}>
-            <svg className="gauge-svg" viewBox="0 0 100 100">
-              <defs>
-                <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#818cf8" />
-                  <stop offset="50%" stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#10b981" />
-                </linearGradient>
-              </defs>
-              <circle className="gauge-bg" cx="50" cy="50" r={radius} />
-              <circle
-                className="gauge-fill"
-                cx="50"
-                cy="50"
-                r={radius}
-                style={{
-                  strokeDasharray: circumference,
-                  strokeDashoffset: isNaN(strokeDashoffset) ? circumference : strokeDashoffset
-                }}
-              />
-            </svg>
-            <div className="gauge-label">{pct}%</div>
+      {/* 2. Signature Studiux Chrono Hero & Dominant Focus Launchpad */}
+      <div className="chrono-cockpit-hero">
+        <div className="chrono-halo-wrap">
+          <svg className="chrono-halo-svg" viewBox="0 0 140 140">
+            <circle className="chrono-halo-track" cx="70" cy="70" r={radius} />
+            <circle
+              className="chrono-halo-progress"
+              cx="70"
+              cy="70"
+              r={radius}
+              style={{
+                strokeDasharray: circumference,
+                strokeDashoffset: isNaN(strokeDashoffset) ? circumference : strokeDashoffset
+              }}
+            />
+          </svg>
+          <div className="chrono-halo-center">
+            <b>{formatDuration(today.duration)}</b>
+            <small>of {formatDuration(target)}</small>
+            <span className="chrono-halo-pct">{pct}%</span>
           </div>
         </div>
 
-        {/* 4 Frosted Glass Metric Tiles */}
-        <div className="metrics">
-          <MetricTile
-            label="REMAINING"
-            value={formatDuration(Math.max(0, target - today.duration))}
-            note="Daily quota"
-            icon={I.Clock}
-            color="var(--accent-light)"
-          />
-          <MetricTile
-            label="SESSIONS"
-            value={today.sessions}
-            note="Completed blocks"
-            icon={I.Flame}
-            color="var(--amber)"
-          />
-          <MetricTile
-            label="QUESTIONS"
-            value={today.questions}
-            note="Attempted & verified"
-            icon={I.CheckCircle2}
-            color="var(--emerald)"
-          />
-          <MetricTile
-            label="FOCUS SCORE"
-            value={today.sessions ? `${Math.round(today.focus / today.sessions)}` : '—'}
-            note="Scale of 100"
-            icon={I.Zap}
-            color="var(--cyan)"
-          />
-        </div>
-      </section>
+        <div className="chrono-launchpad">
+          <div className="chrono-launchpad-copy">
+            <span className="eyebrow">ACADEMIC FOCUS COCKPIT</span>
+            <h2>Ready for your next study block.</h2>
+            <div className="chrono-inline-metrics">
+              <span>{today.sessions} {today.sessions === 1 ? 'Session' : 'Sessions'}</span>
+              <i className="bullet" />
+              <span>{today.questions} Questions</span>
+              <i className="bullet" />
+              <span>Focus Score: {today.sessions ? Math.round(today.focus / today.sessions) : '—'}</span>
+            </div>
+          </div>
 
-      {/* 2x2 Interactive Widgets Grid */}
-      <div className="dashboard-grid">
-        <section className="panel">
-          <div className="panel-title">
-            <h3>Next Up Focus</h3>
+          <div className="chrono-cta-row">
+            <button className="focus-dominant-btn" onClick={() => go('Focus')}>
+              <I.Play style={{ width: 16, height: 16, fill: 'currentColor' }} />
+              <span>Start Focus Block</span>
+              <kbd>Space</kbd>
+            </button>
             <button className="text-button" onClick={() => go('Today')}>
-              Open Command Center →
+              View Full Timeline →
             </button>
           </div>
-          {upcoming.length ? (
-            upcoming.map(t => {
-              const sub = state.subjects.find(s => s.id === t.subjectId);
-              return (
-                <button
-                  className="list-row actionable"
-                  key={t.id}
-                  onClick={() => go('Today')}
-                >
-                  <span className="checkbox" />
-                  <span className="task-copy">
-                    <b>{t.title}</b>
-                    <small>
-                      {sub?.name || t.subject || 'Unsorted'} · {t.estimate || 30}m planned
-                    </small>
-                  </span>
-                  <I.ChevronRight style={{ color: 'var(--text-muted)' }} />
-                </button>
-              );
-            })
-          ) : (
-            <Empty
-              title="No immediate tasks"
-              text="Add one prioritized study block to organize your next hours."
-              action="+ Add Study Task"
-              onClick={() => go('Tasks')}
-            />
-          )}
-        </section>
+        </div>
+      </div>
 
-        <section className="panel">
-          <div className="panel-title">
-            <h3>Subject Balance</h3>
-            <button className="text-button" onClick={() => go('Syllabus')}>
-              Syllabus →
-            </button>
+      {/* 3. Execution Flow: NOW / NEXT / LATER */}
+      <div className="cockpit-flow-grid">
+        {/* Column 1: NOW Immediate Priority */}
+        <div className="flow-column">
+          <div className="flow-header">
+            <h3>NOW · FOCUS PRIORITY</h3>
+            <button className="text-button" onClick={() => go('Tasks')}>Manage Tasks →</button>
           </div>
-          {state.subjects.length ? (
-            state.subjects.slice(0, 4).map(s => {
-              const ms = state.sessions
-                .filter(x => x.subjectId === s.id)
-                .reduce((a, x) => a + (x.duration || 0), 0);
-              const barWidth = Math.min(
-                100,
-                (ms / Math.max(target / Math.max(state.subjects.length, 1), 1)) * 100
-              );
-              return (
-                <div className="subject-row" key={s.id}>
-                  <SubjectDot color={s.color} />
-                  <span>{s.name}</span>
-                  <div>
-                    <i
-                      style={{
-                        width: `${barWidth}%`,
-                        background: s.color || 'var(--accent)'
-                      }}
-                    />
-                  </div>
-                  <b>{formatDuration(ms)}</b>
+
+          {nowPriorityTask ? (
+            <div className="now-priority-card">
+              <div className="now-task-info">
+                <b>{nowPriorityTask.title}</b>
+                <div className="now-task-meta">
+                  {nowPriorityTask.subject && (
+                    <span className="subject-tag">
+                      <SubjectDot color={state.subjects.find(s => s.id === nowPriorityTask.subjectId)?.color} />
+                      {nowPriorityTask.subject}
+                    </span>
+                  )}
+                  <span>{nowPriorityTask.estimate || 30}m estimated</span>
                 </div>
-              );
-            })
+              </div>
+              <button
+                className="primary"
+                style={{ padding: '8px 14px', fontSize: 12.5 }}
+                onClick={() => go('Focus')}
+              >
+                <I.Play style={{ width: 13, height: 13 }} /> Focus Now
+              </button>
+            </div>
           ) : (
-            <Empty
-              title="No subjects created"
-              text="Map out your curriculum to track focus distribution across subjects."
-              action="+ Add Subject"
-              onClick={() => go('Syllabus')}
-            />
+            <div className="guided-setup-strip">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <b style={{ fontSize: 13.5 }}>Set up your study workflow</b>
+                <small style={{ color: 'var(--text-muted)' }}>3 quick actions</small>
+              </div>
+              <div className="guided-setup-steps">
+                <button className="setup-step-pill" onClick={() => go('Syllabus')}>
+                  <b>1</b> Add Subjects
+                </button>
+                <button className="setup-step-pill" onClick={() => go('Tasks')}>
+                  <b>2</b> Plan Today's Task
+                </button>
+                <button className="setup-step-pill" onClick={() => go('Focus')}>
+                  <b>3</b> Launch Focus
+                </button>
+              </div>
+            </div>
           )}
-        </section>
+        </div>
 
-        <section className="panel week">
-          <div className="panel-title">
-            <h3>Seven-Day Rhythm</h3>
-            <span>7-day recorded focus</span>
+        {/* Column 2: NEXT Upcoming Schedule */}
+        <div className="flow-column">
+          <div className="flow-header">
+            <h3>NEXT · UPCOMING SCHEDULE</h3>
+            <button className="text-button" onClick={() => go('Plan')}>Planner →</button>
           </div>
-          <div className="bars">
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {upcomingTasks.map(t => (
+              <div className="feed-row" key={t.id} onClick={() => go('Tasks')}>
+                <div className="feed-row-left">
+                  <span className="subject-dot" style={{ background: state.subjects.find(s => s.id === t.subjectId)?.color || 'var(--accent)' }} />
+                  <b>{t.title}</b>
+                </div>
+                <span className="feed-row-meta">{t.estimate || 30}m</span>
+              </div>
+            ))}
+
+            {dueRevisions.map(r => (
+              <div className="feed-row" key={r.id} onClick={() => go('Revision')}>
+                <div className="feed-row-left">
+                  <I.RotateCcw style={{ width: 13, height: 13, color: 'var(--amber)' }} />
+                  <b>{r.targetTitle || 'Spaced Revision'}</b>
+                </div>
+                <span className="feed-row-meta" style={{ color: 'var(--amber)' }}>Due Today</span>
+              </div>
+            ))}
+
+            {!upcomingTasks.length && !dueRevisions.length && (
+              <div className="feed-row" style={{ color: 'var(--text-muted)', cursor: 'default' }}>
+                <span>No pending scheduled tasks for later today.</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. 7-Day Precision Study Pulse & Subject Mastery Spectrum */}
+      <div className="rhythm-spectrum-grid">
+        <div>
+          <div className="flow-header" style={{ marginBottom: 12 }}>
+            <h3>7-DAY STUDY PULSE</h3>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Verified Focus</span>
+          </div>
+          <div className="rhythm-bars">
             {week.map(x => (
-              <div key={x.d.toISOString()} title={formatDuration(x.value)}>
-                <i style={{ height: `${Math.max(6, (x.value / max) * 100)}%` }} />
-                <small>
-                  {x.d.toLocaleDateString(undefined, { weekday: 'narrow' })}
-                </small>
+              <div className="rhythm-bar-col" key={x.d.toISOString()} title={`${x.d.toLocaleDateString()}: ${formatDuration(x.value)}`}>
+                <div
+                  className="rhythm-bar-fill"
+                  style={{
+                    height: `${Math.max(6, (x.value / maxWeek) * 100)}%`,
+                    background: x.value > 0 ? 'var(--accent)' : 'var(--surface-active)'
+                  }}
+                />
+                <small>{x.d.toLocaleDateString(undefined, { weekday: 'narrow' })}</small>
               </div>
             ))}
           </div>
-          <p className="muted" style={{ marginTop: 14 }}>
-            {state.sessions.length
-              ? 'Calculated directly from verified study timestamps.'
-              : 'Complete sessions to build your daily consistency pattern.'}
-          </p>
-        </section>
+        </div>
 
-        <section className="insight">
-          <I.Sparkles />
-          <div>
-            <span className="eyebrow">STUDY INTELLIGENCE</span>
-            <h3>
-              {strongest
-                ? `${strongest.name} is your highest time investment.`
-                : 'Consistent patterns unlock actionable insights.'}
-            </h3>
-            <p>
-              {strongest
-                ? `${formatDuration(strongest.ms)} recorded so far. Continue logging sessions to balance recall cycles.`
-                : 'Studiux tracks ground-truth performance without synthetic guesswork.'}
-            </p>
+        <div>
+          <div className="flow-header" style={{ marginBottom: 12 }}>
+            <h3>SUBJECT MASTERY SPECTRUM</h3>
+            <button className="text-button" onClick={() => go('Syllabus')}>Syllabus →</button>
           </div>
-        </section>
+
+          {subjectDistribution.length > 0 ? (
+            <>
+              <div className="mastery-spectrum-bar">
+                {subjectDistribution.map(s => (
+                  <div
+                    key={s.id}
+                    className="mastery-segment"
+                    style={{ width: `${s.pct}%`, background: s.color || 'var(--accent)' }}
+                    title={`${s.name}: ${s.pct}%`}
+                  />
+                ))}
+              </div>
+              <div className="mastery-legend">
+                {subjectDistribution.slice(0, 4).map(s => (
+                  <span key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <SubjectDot color={s.color} />
+                    {s.name} <b style={{ color: 'var(--text)' }}>{s.pct}%</b>
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div style={{ padding: '12px 0', color: 'var(--text-muted)', fontSize: 12.5 }}>
+              <span>Subjects configured in Syllabus will dynamically map study distribution here.</span>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );
