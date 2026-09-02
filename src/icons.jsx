@@ -20,6 +20,7 @@ export {
   ChevronRight,
   ChevronLeft,
   Flame,
+  Clock,
   Clock3,
   Trophy,
   PanelLeft,

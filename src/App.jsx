@@ -47,7 +47,7 @@ function Onboarding() {
       <div className="brand-onboard">
         <BrandLogo size="lg" showTagline layout="vertical" />
       </div>
-      <div className="on-card">
+      <div className="on-card panel">
         <span className="eyebrow">SET UP YOUR STUDY SPACE</span>
         <h1>Make the next study block obvious.</h1>
         <p>A small setup now. Everything stays editable later.</p>
@@ -107,7 +107,7 @@ function Onboarding() {
             })
           }
         >
-          Enter my workspace <I.ChevronRight />
+          Enter Workspace <I.ChevronRight />
         </button>
       </div>
     </main>
@@ -194,8 +194,15 @@ function Shell() {
 
   return (
     <div className="app">
+      {/* Background Animated Aurora Orbs */}
+      <div className="aurora-backdrop" aria-hidden="true">
+        <div className="aurora-orb-1" />
+        <div className="aurora-orb-2" />
+        <div className="aurora-orb-3" />
+      </div>
+
       <aside>
-        <div className="brand" onClick={() => navigate('Home')} style={{ cursor: 'pointer' }}>
+        <div className="brand" onClick={() => navigate('Home')}>
           <BrandLogo size="md" />
         </div>
         <nav>
@@ -222,7 +229,7 @@ function Shell() {
             <b>{(state.profile.name || 'S')[0].toUpperCase()}</b>
             <span>
               {state.profile.name || 'Student'}
-              <small>{state.profile.exam}</small>
+              <small>{state.profile.exam || 'Workspace'}</small>
             </span>
           </div>
         </div>
@@ -241,18 +248,20 @@ function Shell() {
           <span>Search or run a command…</span>
           <kbd>⌘ K</kbd>
         </button>
-        <button
-          className="icon notification-button"
-          aria-label="Notifications"
-          onClick={() => setNotifications(true)}
-        >
-          <I.Inbox />
-          {hasUnread && <i />}
-        </button>
-        <button className="start" onClick={() => navigate('Focus')}>
-          <I.Play />
-          <span>Start Focus</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            className="icon-button notification-button"
+            aria-label="Notifications"
+            onClick={() => setNotifications(true)}
+          >
+            <I.Inbox />
+            {hasUnread && <i />}
+          </button>
+          <button className="start" onClick={() => navigate('Focus')}>
+            <I.Play />
+            <span>Start Focus</span>
+          </button>
+        </div>
       </header>
 
       <main className="content">
@@ -390,10 +399,15 @@ function Palette({ close, go }) {
   );
 }
 
-function Metric({ label, value, note }) {
+function MetricTile({ label, value, note, icon: Icon, color = 'var(--accent)' }) {
   return (
-    <div className="metric">
-      <span>{label}</span>
+    <div className="metric-tile">
+      <div className="metric-tile-head">
+        <span>{label}</span>
+        <div className="metric-icon-wrap" style={{ background: `${color}18`, color }}>
+          <Icon />
+        </div>
+      </div>
       <b>{value}</b>
       {note && <small>{note}</small>}
     </div>
@@ -406,7 +420,7 @@ function Empty({ title, text, action, onClick }) {
       <h3>{title}</h3>
       <p>{text}</p>
       {action && (
-        <button className="text-button" onClick={onClick}>
+        <button className="primary" style={{ padding: '8px 16px', fontSize: 13 }} onClick={onClick}>
           {action}
         </button>
       )}
@@ -427,6 +441,11 @@ function Home({ go }) {
   );
   const target = (state.profile.targetMinutes || 360) * 60000;
   const pct = percent(today.duration, target);
+
+  // SVG Gauge calculations
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (pct / 100) * circumference;
 
   const upcoming = [...state.tasks]
     .filter(t => !t.done)
@@ -460,16 +479,11 @@ function Home({ go }) {
     <>
       <section className="hero">
         <div>
-          <span className="eyebrow">
-            {new Date()
-              .toLocaleDateString(undefined, {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric'
-              })
-              .toUpperCase()}
-          </span>
-          <h1>
+          <div className="hero-live-badge">
+            <i className="hero-live-beacon" />
+            <span>STUDY CYCLE ACTIVE • {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}</span>
+          </div>
+          <h1 className="gradient-text">
             Good{' '}
             {new Date().getHours() < 12
               ? 'morning'
@@ -480,16 +494,19 @@ function Home({ go }) {
           </h1>
           <p>
             {today.duration
-              ? `${formatDuration(today.duration)} focused study completed today. Maintain momentum.`
-              : 'Your study history starts with one focused session.'}
+              ? `${formatDuration(today.duration)} focused study recorded today. Stay with the next clear action.`
+              : 'Your study momentum starts with one single focused session.'}
           </p>
         </div>
-        <button className="primary" onClick={() => go('Focus')}>
-          <I.Play />
-          <span>Start Focus</span>
-        </button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button className="primary big" onClick={() => go('Focus')}>
+            <I.Play />
+            <span>Start Focus</span>
+          </button>
+        </div>
       </section>
 
+      {/* Centerpiece Today's Velocity & Target Card */}
       <section className="today panel">
         <div className="panel-head">
           <div>
@@ -501,54 +518,100 @@ function Home({ go }) {
               <small>of {formatDuration(target)} target</small>
             </h2>
           </div>
-          <div className="ring" style={{ '--p': `${pct * 3.6}deg` }}>
-            <b>{pct}%</b>
+
+          {/* High-Tech Glowing Gauge Ring */}
+          <div className="gauge-wrapper" aria-label={`${pct}% daily target complete`}>
+            <svg className="gauge-svg" viewBox="0 0 100 100">
+              <defs>
+                <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#818cf8" />
+                  <stop offset="50%" stopColor="#6366f1" />
+                  <stop offset="100%" stopColor="#10b981" />
+                </linearGradient>
+              </defs>
+              <circle className="gauge-bg" cx="50" cy="50" r={radius} />
+              <circle
+                className="gauge-fill"
+                cx="50"
+                cy="50"
+                r={radius}
+                style={{
+                  strokeDasharray: circumference,
+                  strokeDashoffset: isNaN(strokeDashoffset) ? circumference : strokeDashoffset
+                }}
+              />
+            </svg>
+            <div className="gauge-label">{pct}%</div>
           </div>
         </div>
+
+        {/* 4 Frosted Glass Metric Tiles */}
         <div className="metrics">
-          <Metric
+          <MetricTile
             label="REMAINING"
             value={formatDuration(Math.max(0, target - today.duration))}
+            note="Daily quota"
+            icon={I.Clock}
+            color="var(--accent-light)"
           />
-          <Metric label="SESSIONS" value={today.sessions} />
-          <Metric label="QUESTIONS" value={today.questions} />
-          <Metric
+          <MetricTile
+            label="SESSIONS"
+            value={today.sessions}
+            note="Completed blocks"
+            icon={I.Flame}
+            color="var(--amber)"
+          />
+          <MetricTile
+            label="QUESTIONS"
+            value={today.questions}
+            note="Attempted & verified"
+            icon={I.CheckCircle2}
+            color="var(--emerald)"
+          />
+          <MetricTile
             label="FOCUS SCORE"
-            value={today.sessions ? Math.round(today.focus / today.sessions) : '—'}
+            value={today.sessions ? `${Math.round(today.focus / today.sessions)}` : '—'}
+            note="Scale of 100"
+            icon={I.Zap}
+            color="var(--cyan)"
           />
         </div>
       </section>
 
+      {/* 2x2 Interactive Widgets Grid */}
       <div className="dashboard-grid">
         <section className="panel">
           <div className="panel-title">
-            <h3>Next up</h3>
+            <h3>Next Up Focus</h3>
             <button className="text-button" onClick={() => go('Today')}>
-              Open Today →
+              Open Command Center →
             </button>
           </div>
           {upcoming.length ? (
-            upcoming.map(t => (
-              <button
-                className="list-row actionable"
-                key={t.id}
-                onClick={() => go('Tasks')}
-              >
-                <span className="checkbox" />
-                <span className="task-copy">
-                  <b>{t.title}</b>
-                  <small>
-                    {t.subject || 'Unsorted'} · {t.estimate || 30}m
-                  </small>
-                </span>
-                <I.ChevronRight />
-              </button>
-            ))
+            upcoming.map(t => {
+              const sub = state.subjects.find(s => s.id === t.subjectId);
+              return (
+                <button
+                  className="list-row actionable"
+                  key={t.id}
+                  onClick={() => go('Today')}
+                >
+                  <span className="checkbox" />
+                  <span className="task-copy">
+                    <b>{t.title}</b>
+                    <small>
+                      {sub?.name || t.subject || 'Unsorted'} · {t.estimate || 30}m planned
+                    </small>
+                  </span>
+                  <I.ChevronRight style={{ color: 'var(--text-muted)' }} />
+                </button>
+              );
+            })
           ) : (
             <Empty
-              title="Nothing scheduled"
-              text="Add one clear task to organize your day."
-              action="Add task"
+              title="No immediate tasks"
+              text="Add one prioritized study block to organize your next hours."
+              action="+ Add Study Task"
               onClick={() => go('Tasks')}
             />
           )}
@@ -556,8 +619,10 @@ function Home({ go }) {
 
         <section className="panel">
           <div className="panel-title">
-            <h3>Subject allocation</h3>
-            <span>Recorded focus</span>
+            <h3>Subject Balance</h3>
+            <button className="text-button" onClick={() => go('Syllabus')}>
+              Syllabus →
+            </button>
           </div>
           {state.subjects.length ? (
             state.subjects.slice(0, 4).map(s => {
@@ -586,9 +651,9 @@ function Home({ go }) {
             })
           ) : (
             <Empty
-              title="Add your first subject"
-              text="Subjects give every focus block useful context."
-              action="Add subject"
+              title="No subjects created"
+              text="Map out your curriculum to track focus distribution across subjects."
+              action="+ Add Subject"
               onClick={() => go('Syllabus')}
             />
           )}
@@ -596,13 +661,13 @@ function Home({ go }) {
 
         <section className="panel week">
           <div className="panel-title">
-            <h3>Seven-day rhythm</h3>
-            <span>Actual focus time</span>
+            <h3>Seven-Day Rhythm</h3>
+            <span>7-day recorded focus</span>
           </div>
           <div className="bars">
             {week.map(x => (
               <div key={x.d.toISOString()} title={formatDuration(x.value)}>
-                <i style={{ height: `${(x.value / max) * 100}%` }} />
+                <i style={{ height: `${Math.max(6, (x.value / max) * 100)}%` }} />
                 <small>
                   {x.d.toLocaleDateString(undefined, { weekday: 'narrow' })}
                 </small>
@@ -611,24 +676,24 @@ function Home({ go }) {
           </div>
           <p className="muted" style={{ marginTop: 14 }}>
             {state.sessions.length
-              ? 'Derived purely from your recorded focus sessions.'
-              : 'Complete sessions to build your study pattern.'}
+              ? 'Calculated directly from verified study timestamps.'
+              : 'Complete sessions to build your daily consistency pattern.'}
           </p>
         </section>
 
         <section className="insight">
-          <I.Brain />
+          <I.Sparkles />
           <div>
-            <span className="eyebrow">GROUNDED INSIGHT</span>
+            <span className="eyebrow">STUDY INTELLIGENCE</span>
             <h3>
               {strongest
-                ? `${strongest.name} is your strongest time investment.`
-                : 'A useful pattern needs evidence.'}
+                ? `${strongest.name} is your highest time investment.`
+                : 'Consistent patterns unlock actionable insights.'}
             </h3>
             <p>
               {strongest
-                ? `${formatDuration(strongest.ms)} recorded so far. Add more sessions to compare balance and focus windows.`
-                : 'Studiux will surface patterns only after your own records make them meaningful.'}
+                ? `${formatDuration(strongest.ms)} recorded so far. Continue logging sessions to balance recall cycles.`
+                : 'Studiux tracks ground-truth performance without synthetic guesswork.'}
             </p>
           </div>
         </section>
