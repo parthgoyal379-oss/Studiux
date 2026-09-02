@@ -44,7 +44,7 @@ function Onboarding() {
 
   return (
     <main className="onboard">
-      <div className="brand-onboard" style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+      <div className="brand-onboard">
         <BrandLogo size="lg" showTagline layout="vertical" />
       </div>
       <div className="on-card">
@@ -53,16 +53,16 @@ function Onboarding() {
         <p>A small setup now. Everything stays editable later.</p>
 
         <label>
-          Your name
+          Your Name
           <input
             value={draft.name}
             onChange={e => setDraft({ ...draft, name: e.target.value })}
-            placeholder="Parth"
+            placeholder="e.g. Parth"
             autoFocus
           />
         </label>
         <label>
-          Preparing for
+          Target Examination
           <select value={draft.exam} onChange={e => setDraft({ ...draft, exam: e.target.value })}>
             {['JEE 2027', 'NEET', 'UPSC', 'SAT', 'University', 'Something else'].map(x => (
               <option key={x}>{x}</option>
@@ -71,7 +71,7 @@ function Onboarding() {
         </label>
         <div className="form-row">
           <label>
-            Daily target
+            Daily Target (Hours)
             <input
               type="number"
               min="0"
@@ -82,10 +82,9 @@ function Onboarding() {
                 setDraft({ ...draft, targetMinutes: Math.max(0, Number(e.target.value) * 60) })
               }
             />
-            <small>hours</small>
           </label>
           <label>
-            Study day resets
+            Study Day Resets At
             <select
               value={draft.resetHour}
               onChange={e => setDraft({ ...draft, resetHour: Number(e.target.value) })}
@@ -100,6 +99,7 @@ function Onboarding() {
         </div>
         <button
           className="primary wide big"
+          style={{ marginTop: 8 }}
           onClick={() =>
             patch({
               profile: { ...draft, name: draft.name.trim() || 'Student' },
