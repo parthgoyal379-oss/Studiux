@@ -1,0 +1,1 @@
+export function readPublicEnv(source=import.meta.env){const url=source.VITE_SUPABASE_URL?.trim();const anonKey=source.VITE_SUPABASE_ANON_KEY?.trim();const configured=Boolean(url&&anonKey);if(configured){try{const parsed=new URL(url);if(parsed.protocol!=='https:')throw new Error()}catch{throw new Error('VITE_SUPABASE_URL must be a valid HTTPS URL')}}return{configured,url,anonKey}}

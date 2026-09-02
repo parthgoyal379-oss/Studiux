@@ -1,0 +1,13 @@
+begin;
+drop policy if exists member_join_self on public.group_members;
+drop policy if exists member_admin_update on public.group_members;
+drop policy if exists member_leave on public.group_members;
+drop policy if exists group_manage on public.groups;
+create policy group_owner_update on public.groups for update using(owner_id=auth.uid()) with check(owner_id=auth.uid());
+create policy member_self_leave on public.group_members for delete using(user_id=auth.uid() and role<>'owner');
+create policy member_owner_manage on public.group_members for all using(exists(select 1 from public.groups g where g.id=group_id and g.owner_id=auth.uid())) with check(exists(select 1 from public.groups g where g.id=group_id and g.owner_id=auth.uid()));
+create policy member_admin_manage on public.group_members for update using(role='member' and public.is_group_admin(group_id)) with check(role='member' and public.is_group_admin(group_id));
+create policy member_admin_remove on public.group_members for delete using(role='member' and public.is_group_admin(group_id));
+create or replace function public.join_group_by_code(p_code text) returns uuid language plpgsql security definer set search_path='' as $$declare g uuid;begin if auth.uid() is null then raise exception 'Authentication required';end if;select id into g from public.groups where join_code=p_code;if g is null then raise exception 'Invalid group code';end if;insert into public.group_members(group_id,user_id,role) values(g,auth.uid(),'member') on conflict do nothing;return g;end$$;
+create or replace function public.delete_my_account() returns void language plpgsql security definer set search_path='' as $$begin if auth.uid() is null then raise exception 'Authentication required';end if;delete from auth.users where id=auth.uid();end$$;
+commit;

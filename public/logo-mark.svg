@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 296" fill="none">
+  <!-- Structure Base Foundation -->
+  <path d="M 6 126 L 37 126 L 37 178 L 128 234 L 195 198 L 195 238 L 128 284 L 6 210 Z" fill="currentColor" />
+  <!-- Focus Right Pillar -->
+  <path d="M 211 48 L 246 48 L 246 216 L 211 236 Z" fill="currentColor" />
+  <!-- Bar 1: Purple (Initiation) -->
+  <polygon points="59,88 88,71 88,162 59,145" fill="#7469B6" />
+  <!-- Bar 2: Slate Blue (Momentum) -->
+  <polygon points="109,53 138,36 138,203 109,186" fill="#4B7699" />
+  <!-- Bar 3: Emerald Teal (Mastery) -->
+  <polygon points="159,18 188,1 188,242 159,225" fill="#34A39C" />
+</svg>
