@@ -23,7 +23,7 @@ const ExamsExperience = lazy(() => import('./features/ExamsExperience.jsx'));
 
 const NAV_SECTIONS = [
   {
-    title: 'OVERVIEW',
+    title: '',
     items: [
       ['Home', I.House, 'Home'],
       ['Today', I.Target, 'Today'],
@@ -33,7 +33,7 @@ const NAV_SECTIONS = [
     ]
   },
   {
-    title: 'STUDY VAULT',
+    title: '',
     items: [
       ['Tasks', I.CheckSquare, 'Tasks'],
       ['Syllabus', I.BookOpen, 'Syllabus'],
@@ -43,7 +43,7 @@ const NAV_SECTIONS = [
     ]
   },
   {
-    title: 'SYSTEM',
+    title: '',
     items: [
       ['Groups', I.Users, 'Circles'],
       ['Settings', I.Settings, 'Settings']
@@ -64,9 +64,9 @@ function Onboarding() {
         <BrandLogo size="lg" showTagline layout="vertical" />
       </div>
       <div className="on-card panel">
-        <span className="eyebrow">SET UP YOUR STUDY SPACE</span>
-        <h1>Make the next study block obvious.</h1>
-        <p>A small setup now. Everything stays editable later.</p>
+        <small style={{ color: 'var(--ink-muted)', marginBottom: 4 }}>Get started</small>
+        <h1>Set up your workspace</h1>
+        <p>Takes a minute. Everything stays editable later.</p>
 
         <label>
           Your Name
@@ -216,8 +216,8 @@ function Shell() {
         </div>
         <nav>
           {NAV_SECTIONS.map(section => (
-            <div className="nav-section" key={section.title}>
-              <div className="nav-section-title">{section.title}</div>
+            <div className="nav-section" key={section.title || section.items[0][0]}>
+              {section.title && <div className="nav-section-title">{section.title}</div>}
               {section.items.map(([name, Icon, label]) => (
                 <button
                   key={name}
@@ -389,7 +389,7 @@ function Palette({ close, go }) {
             autoFocus
           />
         </div>
-        <span className="eyebrow">{term ? 'RESULTS' : 'QUICK ACTIONS'}</span>
+        <span className="eyebrow">{term ? 'Results' : 'Quick actions'}</span>
         {list.map((item, index) => {
           const [label, , Icon] = item;
           return (
@@ -424,11 +424,6 @@ function Home({ go }) {
   const target = (state.profile.targetMinutes || 360) * 60000;
   const pct = percent(today.duration, target);
 
-  // Precision Chrono Halo calculations
-  const radius = 58;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (pct / 100) * circumference;
-
   const activeTasks = state.tasks.filter(t => !t.done);
   const nowPriorityTask = activeTasks.sort((a, b) => (a.dueAt || Infinity) - (b.dueAt || Infinity))[0];
   const upcomingTasks = activeTasks.slice(1, 4);
@@ -449,226 +444,186 @@ function Home({ go }) {
 
   const maxWeek = Math.max(...week.map(x => x.value), 1);
 
-  // Subject distribution
-  const totalSubjectMs = state.sessions.reduce((acc, s) => acc + (s.duration || 0), 0);
-  const subjectDistribution = state.subjects.map(s => {
-    const ms = state.sessions
-      .filter(x => x.subjectId === s.id)
-      .reduce((a, x) => a + (x.duration || 0), 0);
-    return { ...s, ms, pct: totalSubjectMs ? Math.round((ms / totalSubjectMs) * 100) : 0 };
-  }).filter(s => s.ms > 0);
+  const dateStr = new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
+  });
 
   return (
-    <>
-      {/* 1. Header & Live Time Anchor */}
-      <div className="cockpit-header">
-        <div className="cockpit-date-tag">
-          <i className="cockpit-live-pulse" />
-          <span>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}</span>
-          <span style={{ opacity: 0.4 }}>•</span>
-          <span>STUDY CYCLE ACTIVE</span>
-        </div>
-        <span className="cockpit-reset-hint">
-          Quota resets at {String(state.profile.resetHour).padStart(2, '0')}:00
-        </span>
-      </div>
+    <div className="home-layout">
+      {/* Main column */}
+      <div className="home-main">
+        <div className="home-date">{dateStr}</div>
 
-      {/* 2. Signature Studiux Chrono Hero & Dominant Focus Launchpad */}
-      <div className="chrono-cockpit-hero">
-        <div className="chrono-halo-wrap">
-          <svg className="chrono-halo-svg" viewBox="0 0 140 140">
-            <circle className="chrono-halo-track" cx="70" cy="70" r={radius} />
-            <circle
-              className="chrono-halo-progress"
-              cx="70"
-              cy="70"
-              r={radius}
-              style={{
-                strokeDasharray: circumference,
-                strokeDashoffset: isNaN(strokeDashoffset) ? circumference : strokeDashoffset
-              }}
-            />
-          </svg>
-          <div className="chrono-halo-center">
-            <b>{formatDuration(today.duration)}</b>
-            <small>of {formatDuration(target)}</small>
-            <span className="chrono-halo-pct">{pct}%</span>
-          </div>
+        {/* Study duration — typography is the hero */}
+        <div className="home-studied">
+          <b>{formatDuration(today.duration)}</b>
+          <small>studied today</small>
         </div>
 
-        <div className="chrono-launchpad">
-          <div className="chrono-launchpad-copy">
-            <span className="eyebrow">ACADEMIC FOCUS COCKPIT</span>
-            <h2>Ready for your next study block.</h2>
-            <div className="chrono-inline-metrics">
-              <span>{today.sessions} {today.sessions === 1 ? 'Session' : 'Sessions'}</span>
-              <i className="bullet" />
-              <span>{today.questions} Questions</span>
-              <i className="bullet" />
-              <span>Focus Score: {today.sessions ? Math.round(today.focus / today.sessions) : '—'}</span>
-            </div>
-          </div>
-
-          <div className="chrono-cta-row">
-            <button className="focus-dominant-btn" onClick={() => go('Focus')}>
-              <I.Play style={{ width: 16, height: 16, fill: 'currentColor' }} />
-              <span>Start Focus Block</span>
-              <kbd>Space</kbd>
-            </button>
-            <button className="text-button" onClick={() => go('Today')}>
-              View Full Timeline →
-            </button>
-          </div>
+        {/* Horizontal progress track */}
+        <div className="progress-track">
+          <div
+            className="progress-track-fill"
+            style={{ width: `${Math.min(100, pct)}%` }}
+          />
+          <span className="progress-track-label">
+            {formatDuration(target)}
+          </span>
         </div>
-      </div>
 
-      {/* 3. Execution Flow: NOW / NEXT / LATER */}
-      <div className="cockpit-flow-grid">
-        {/* Column 1: NOW Immediate Priority */}
-        <div className="flow-column">
-          <div className="flow-header">
-            <h3>NOW · FOCUS PRIORITY</h3>
-            <button className="text-button" onClick={() => go('Tasks')}>Manage Tasks →</button>
+        {/* Focus CTA */}
+        <button className="home-focus-btn" onClick={() => go('Focus')}>
+          <I.Play style={{ width: 15, height: 15, fill: 'currentColor' }} />
+          Start a focus session
+          <kbd>Space</kbd>
+        </button>
+
+        {/* Up next section */}
+        <div className="home-section">
+          <div className="home-section-head">
+            <h3>Up next</h3>
+            <button className="text-button" onClick={() => go('Tasks')}>All tasks →</button>
           </div>
 
           {nowPriorityTask ? (
-            <div className="now-priority-card">
-              <div className="now-task-info">
-                <b>{nowPriorityTask.title}</b>
-                <div className="now-task-meta">
-                  {nowPriorityTask.subject && (
-                    <span className="subject-tag">
-                      <SubjectDot color={state.subjects.find(s => s.id === nowPriorityTask.subjectId)?.color} />
-                      {nowPriorityTask.subject}
-                    </span>
-                  )}
-                  <span>{nowPriorityTask.estimate || 30}m estimated</span>
+            <>
+              <div className="now-priority-card">
+                <div className="now-task-info">
+                  <b>{nowPriorityTask.title}</b>
+                  <div className="now-task-meta">
+                    {nowPriorityTask.subject && (
+                      <span className="subject-tag">
+                        <SubjectDot color={state.subjects.find(s => s.id === nowPriorityTask.subjectId)?.color} />
+                        {nowPriorityTask.subject}
+                      </span>
+                    )}
+                    <span>{nowPriorityTask.estimate || 30}m</span>
+                  </div>
                 </div>
+                <button
+                  className="primary"
+                  style={{ padding: '6px 12px', fontSize: 12 }}
+                  onClick={() => go('Focus')}
+                >
+                  <I.Play style={{ width: 12, height: 12 }} /> Focus
+                </button>
               </div>
-              <button
-                className="primary"
-                style={{ padding: '8px 14px', fontSize: 12.5 }}
-                onClick={() => go('Focus')}
-              >
-                <I.Play style={{ width: 13, height: 13 }} /> Focus Now
-              </button>
-            </div>
+
+              {upcomingTasks.map(t => (
+                <div className="feed-row" key={t.id} onClick={() => go('Tasks')}>
+                  <div className="feed-row-left">
+                    <span className="subject-dot" style={{ background: state.subjects.find(s => s.id === t.subjectId)?.color || 'var(--accent)' }} />
+                    <b>{t.title}</b>
+                  </div>
+                  <span className="feed-row-meta">{t.estimate || 30}m</span>
+                </div>
+              ))}
+            </>
           ) : (
-            <div className="guided-setup-strip">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <b style={{ fontSize: 13.5 }}>Set up your study workflow</b>
-                <small style={{ color: 'var(--text-muted)' }}>3 quick actions</small>
-              </div>
-              <div className="guided-setup-steps">
-                <button className="setup-step-pill" onClick={() => go('Syllabus')}>
-                  <b>1</b> Add Subjects
-                </button>
-                <button className="setup-step-pill" onClick={() => go('Tasks')}>
-                  <b>2</b> Plan Today's Task
-                </button>
-                <button className="setup-step-pill" onClick={() => go('Focus')}>
-                  <b>3</b> Launch Focus
-                </button>
-              </div>
-            </div>
+            <p style={{ fontSize: 13 }}>
+              No tasks yet.{' '}
+              <button className="text-button" onClick={() => go('Tasks')}>Add a study task →</button>
+            </p>
           )}
         </div>
 
-        {/* Column 2: NEXT Upcoming Schedule */}
-        <div className="flow-column">
-          <div className="flow-header">
-            <h3>NEXT · UPCOMING SCHEDULE</h3>
-            <button className="text-button" onClick={() => go('Plan')}>Planner →</button>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {upcomingTasks.map(t => (
-              <div className="feed-row" key={t.id} onClick={() => go('Tasks')}>
-                <div className="feed-row-left">
-                  <span className="subject-dot" style={{ background: state.subjects.find(s => s.id === t.subjectId)?.color || 'var(--accent)' }} />
-                  <b>{t.title}</b>
-                </div>
-                <span className="feed-row-meta">{t.estimate || 30}m</span>
-              </div>
-            ))}
-
+        {/* Revision due */}
+        {dueRevisions.length > 0 && (
+          <div className="home-section">
+            <div className="home-section-head">
+              <h3>Revision due</h3>
+              <button className="text-button" onClick={() => go('Revision')}>Open →</button>
+            </div>
             {dueRevisions.map(r => (
               <div className="feed-row" key={r.id} onClick={() => go('Revision')}>
                 <div className="feed-row-left">
-                  <I.RotateCcw style={{ width: 13, height: 13, color: 'var(--amber)' }} />
+                  <I.RotateCcw style={{ width: 13, height: 13, color: 'var(--warning)' }} />
                   <b>{r.targetTitle || 'Spaced Revision'}</b>
                 </div>
-                <span className="feed-row-meta" style={{ color: 'var(--amber)' }}>Due Today</span>
-              </div>
-            ))}
-
-            {!upcomingTasks.length && !dueRevisions.length && (
-              <div className="feed-row" style={{ color: 'var(--text-muted)', cursor: 'default' }}>
-                <span>No pending scheduled tasks for later today.</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 4. 7-Day Precision Study Pulse & Subject Mastery Spectrum */}
-      <div className="rhythm-spectrum-grid">
-        <div>
-          <div className="flow-header" style={{ marginBottom: 12 }}>
-            <h3>7-DAY STUDY PULSE</h3>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Verified Focus</span>
-          </div>
-          <div className="rhythm-bars">
-            {week.map(x => (
-              <div className="rhythm-bar-col" key={x.d.toISOString()} title={`${x.d.toLocaleDateString()}: ${formatDuration(x.value)}`}>
-                <div
-                  className="rhythm-bar-fill"
-                  style={{
-                    height: `${Math.max(6, (x.value / maxWeek) * 100)}%`,
-                    background: x.value > 0 ? 'var(--accent)' : 'var(--surface-active)'
-                  }}
-                />
-                <small>{x.d.toLocaleDateString(undefined, { weekday: 'narrow' })}</small>
+                <span className="feed-row-meta" style={{ color: 'var(--warning)' }}>Due today</span>
               </div>
             ))}
           </div>
-        </div>
+        )}
 
-        <div>
-          <div className="flow-header" style={{ marginBottom: 12 }}>
-            <h3>SUBJECT MASTERY SPECTRUM</h3>
-            <button className="text-button" onClick={() => go('Syllabus')}>Syllabus →</button>
+        {/* Today's plan link */}
+        <div className="home-section">
+          <div className="home-section-head">
+            <h3>Today's plan</h3>
+            <button className="text-button" onClick={() => go('Plan')}>Open planner →</button>
           </div>
-
-          {subjectDistribution.length > 0 ? (
-            <>
-              <div className="mastery-spectrum-bar">
-                {subjectDistribution.map(s => (
-                  <div
-                    key={s.id}
-                    className="mastery-segment"
-                    style={{ width: `${s.pct}%`, background: s.color || 'var(--accent)' }}
-                    title={`${s.name}: ${s.pct}%`}
-                  />
-                ))}
-              </div>
-              <div className="mastery-legend">
-                {subjectDistribution.slice(0, 4).map(s => (
-                  <span key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                    <SubjectDot color={s.color} />
-                    {s.name} <b style={{ color: 'var(--text)' }}>{s.pct}%</b>
-                  </span>
-                ))}
-              </div>
-            </>
+          {today.sessions > 0 ? (
+            <p style={{ fontSize: 13 }}>
+              {today.sessions} {today.sessions === 1 ? 'session' : 'sessions'} logged today.{' '}
+              <button className="text-button" onClick={() => go('Today')}>View timeline →</button>
+            </p>
           ) : (
-            <div style={{ padding: '12px 0', color: 'var(--text-muted)', fontSize: 12.5 }}>
-              <span>Subjects configured in Syllabus will dynamically map study distribution here.</span>
-            </div>
+            <p style={{ fontSize: 13 }}>
+              No sessions yet today.{' '}
+              <button className="text-button" onClick={() => go('Focus')}>Start one →</button>
+            </p>
           )}
         </div>
       </div>
-    </>
+
+      {/* Context sidebar */}
+      <div className="home-context">
+        <div className="context-block">
+          <h4>Daily target</h4>
+          <div className="context-value">{formatDuration(target)}</div>
+          <div className="context-label">{pct}% complete</div>
+        </div>
+
+        <div className="context-block">
+          <h4>Sessions</h4>
+          <div className="context-value">{today.sessions}</div>
+        </div>
+
+        <div className="context-block">
+          <h4>Questions</h4>
+          <div className="context-value">{today.questions}</div>
+        </div>
+
+        <div className="context-block">
+          <h4>Focus score</h4>
+          <div className="context-value">
+            {today.sessions ? Math.round(today.focus / today.sessions) : '—'}
+          </div>
+          <div className="context-label">out of 100</div>
+        </div>
+
+        <div className="context-block">
+          <h4>Resets at</h4>
+          <div className="context-label">
+            {String(state.profile.resetHour).padStart(2, '0')}:00
+          </div>
+        </div>
+
+        {/* Mini week chart */}
+        <div className="context-block">
+          <h4>This week</h4>
+          <div className="mini-bars">
+            {week.map(x => (
+              <div
+                key={x.d.toISOString()}
+                className={x.value > 0 ? 'mini-bar' : 'mini-bar mini-bar-empty'}
+                style={{ height: `${Math.max(6, (x.value / maxWeek) * 100)}%` }}
+                title={`${x.d.toLocaleDateString()}: ${formatDuration(x.value)}`}
+              />
+            ))}
+          </div>
+          <div className="mini-bar-labels">
+            {week.map(x => (
+              <small key={x.d.toISOString()}>
+                {x.d.toLocaleDateString(undefined, { weekday: 'narrow' })}
+              </small>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

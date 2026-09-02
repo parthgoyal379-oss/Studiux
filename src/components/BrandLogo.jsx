@@ -87,12 +87,12 @@ export function BrandLogo({
         <span
           className="studiux-brand-title"
           style={{
-            fontFamily: 'var(--font-display, "Plus Jakarta Sans", system-ui, sans-serif)',
+            fontFamily: 'var(--font-sans, "Inter", system-ui, sans-serif)',
             fontWeight: 800,
             fontSize: config.font,
             letterSpacing: config.letterSpacing,
             textTransform: 'uppercase',
-            color: 'var(--text, #161922)',
+            color: 'var(--ink, #1a1a1a)',
           }}
         >
           STUDIUX
@@ -101,11 +101,11 @@ export function BrandLogo({
           <span
             className="studiux-brand-tagline"
             style={{
-              fontFamily: 'var(--font-sans, "Manrope", system-ui, sans-serif)',
+              fontFamily: 'var(--font-sans, "Inter", system-ui, sans-serif)',
               fontWeight: 700,
               fontSize: '9px',
               letterSpacing: '0.22em',
-              color: 'var(--text-secondary, #6b7280)',
+              color: 'var(--ink-secondary, #6b6b6b)',
               marginTop: '4px',
               textTransform: 'uppercase',
             }}
