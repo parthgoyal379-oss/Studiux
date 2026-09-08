@@ -3,7 +3,7 @@ import { Store, useStore } from './store.jsx';
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
 import { AuthScreen } from './auth/AuthScreen.jsx';
 import { SyncBadge } from './sync/SyncContext.jsx';
-import { aggregate, formatDuration, studyDayKey } from './lib.js';
+import { aggregate, elapsed, formatDuration, studyDayKey } from './lib.js';
 import { evaluateNotifications } from './domain/notificationEngine.js';
 import * as I from './icons.jsx';
 import { BrandLogo } from './components/BrandLogo.jsx';
@@ -23,27 +23,27 @@ const ExamsExperience = lazy(() => import('./features/ExamsExperience.jsx'));
 
 const NAV_SECTIONS = [
   {
-    title: '',
+    title: 'Core',
     items: [
-      ['Home', I.House, 'Home'],
+      ['Home', I.House, 'Dashboard'],
       ['Today', I.Target, 'Today'],
-      ['Focus', I.Timer, 'Focus'],
-      ['Plan', I.CalendarDays, 'Plan'],
-      ['Progress', I.ChartNoAxesCombined, 'Progress']
+      ['Focus', I.Timer, 'Focus Timer'],
+      ['Plan', I.CalendarDays, 'Planner'],
+      ['Progress', I.ChartNoAxesCombined, 'Analytics']
     ]
   },
   {
-    title: '',
+    title: 'Curriculum',
     items: [
       ['Tasks', I.CheckSquare, 'Tasks'],
       ['Syllabus', I.BookOpen, 'Syllabus'],
-      ['Revision', I.RotateCcw, 'Revision'],
+      ['Revision', I.RotateCcw, 'Spaced Revision'],
       ['Exams', I.Trophy, 'Exams'],
-      ['Mocks', I.BarChart3, 'Mocks']
+      ['Mocks', I.BarChart3, 'Mock Lab']
     ]
   },
   {
-    title: '',
+    title: 'Workspace',
     items: [
       ['Groups', I.Users, 'Circles'],
       ['Settings', I.Settings, 'Settings']
@@ -64,9 +64,9 @@ function Onboarding() {
         <BrandLogo size="lg" showTagline layout="vertical" />
       </div>
       <div className="on-card panel">
-        <small style={{ color: 'var(--ink-muted)', marginBottom: 4 }}>Get started</small>
-        <h1>Set up your workspace</h1>
-        <p>Takes a minute. Everything stays editable later.</p>
+        <span className="eyebrow">WELCOME TO STUDIUX</span>
+        <h1>Initialize your workspace</h1>
+        <p>Your local-first study command operating system. Everything can be adjusted later in settings.</p>
 
         <label>
           Your Name
@@ -80,22 +80,22 @@ function Onboarding() {
         <label>
           Target Examination
           <select value={draft.exam} onChange={e => setDraft({ ...draft, exam: e.target.value })}>
-            {['JEE 2027', 'NEET', 'UPSC', 'SAT', 'University', 'Something else'].map(x => (
+            {['JEE 2027', 'JEE 2026', 'NEET', 'UPSC', 'SAT', 'University', 'Something else'].map(x => (
               <option key={x}>{x}</option>
             ))}
           </select>
         </label>
         <div className="form-row">
           <label>
-            Daily Target (Hours)
+            Daily Study Target (Hours)
             <input
               type="number"
-              min="0"
+              min="0.5"
               max="24"
               step="0.25"
               value={draft.targetMinutes / 60}
               onChange={e =>
-                setDraft({ ...draft, targetMinutes: Math.max(0, Number(e.target.value) * 60) })
+                setDraft({ ...draft, targetMinutes: Math.max(30, Number(e.target.value) * 60) })
               }
             />
           </label>
@@ -115,15 +115,15 @@ function Onboarding() {
         </div>
         <button
           className="primary wide big"
-          style={{ marginTop: 8 }}
+          style={{ marginTop: 12 }}
           onClick={() =>
             patch({
-              profile: { ...draft, name: draft.name.trim() || 'Student' },
+              profile: { ...draft, name: draft.name.trim() || 'Scholar' },
               onboarded: true
             })
           }
         >
-          Enter Workspace <I.ChevronRight />
+          Launch Workspace <I.ChevronRight style={{ width: 16, height: 16 }} />
         </button>
       </div>
     </main>
@@ -138,6 +138,14 @@ function Shell() {
   });
   const [palette, setPalette] = useState(false);
   const [notifications, setNotifications] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  // Heartbeat for header timer ticker
+  useEffect(() => {
+    if (!state.active) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [state.active]);
 
   // Background deterministic notification evaluation
   useEffect(() => {
@@ -167,7 +175,7 @@ function Shell() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = state.theme;
+    document.documentElement.dataset.theme = state.theme || 'dark';
   }, [state.theme]);
 
   useEffect(() => {
@@ -202,71 +210,117 @@ function Shell() {
 
   const loadingFallback = (
     <main className="route-loading" aria-live="polite">
-      Opening {page}…
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <div className="pulse-dot" style={{ width: 12, height: 12 }} />
+        <span>Opening {page}…</span>
+      </div>
     </main>
   );
 
   const hasUnread = state.notifications.some(row => !row.readAt);
+  const openTasksCount = state.tasks.filter(t => !t.done).length;
+  const dueRevisionCount = state.revisionItems.filter(r => r.status !== 'COMPLETED').length;
 
   return (
     <div className="app">
       <aside>
         <div className="brand" onClick={() => navigate('Home')}>
           <BrandLogo size="md" />
+          <span className="version-badge">v2.0 PRO</span>
         </div>
+
         <nav>
           {NAV_SECTIONS.map(section => (
-            <div className="nav-section" key={section.title || section.items[0][0]}>
+            <div className="nav-section" key={section.title}>
               {section.title && <div className="nav-section-title">{section.title}</div>}
-              {section.items.map(([name, Icon, label]) => (
-                <button
-                  key={name}
-                  className={page === name ? 'active' : ''}
-                  onClick={() => navigate(name)}
-                >
-                  <Icon />
-                  {label || name}
-                </button>
-              ))}
+              {section.items.map(([name, Icon, label]) => {
+                const isActive = page === name;
+                return (
+                  <button
+                    key={name}
+                    className={isActive ? 'active' : ''}
+                    onClick={() => navigate(name)}
+                  >
+                    <Icon />
+                    <span>{label || name}</span>
+                    {name === 'Focus' && state.active && <span className="pulse-dot" />}
+                    {name === 'Tasks' && openTasksCount > 0 && (
+                      <span className="nav-badge">{openTasksCount}</span>
+                    )}
+                    {name === 'Revision' && dueRevisionCount > 0 && (
+                      <span className="nav-badge" style={{ color: 'var(--warning)' }}>
+                        {dueRevisionCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           ))}
         </nav>
+
         <div className="aside-foot">
-          <button
-            onClick={() => patch({ theme: state.theme === 'dark' ? 'light' : 'dark' })}
-            aria-label="Toggle light or dark theme"
-          >
-            {state.theme === 'dark' ? <I.Sun /> : <I.Moon />}
-            {state.theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-          </button>
-          <div className="user">
-            <b>{(state.profile.name || 'S')[0].toUpperCase()}</b>
-            <span>
-              {state.profile.name || 'Student'}
-              <small>{state.profile.exam || 'Workspace'}</small>
-            </span>
+          <div className="aside-user-card">
+            <div className="aside-avatar">
+              {(state.profile?.name || 'S')[0].toUpperCase()}
+            </div>
+            <div className="aside-user-info">
+              <span className="aside-user-name">{state.profile?.name || 'Scholar'}</span>
+              <span className="aside-user-exam">{state.profile?.exam || 'General Prep'}</span>
+            </div>
+            <button
+              className="theme-toggle-btn"
+              onClick={() => patch({ theme: state.theme === 'light' ? 'dark' : 'light' })}
+              aria-label="Toggle theme"
+              title={`Switch to ${state.theme === 'light' ? 'Dark' : 'Light'} Mode`}
+            >
+              {state.theme === 'light' ? <I.Moon /> : <I.Sun />}
+            </button>
           </div>
         </div>
       </aside>
 
       <header>
-        <button
-          className="mobile-menu"
-          onClick={() => setPalette(true)}
-          aria-label="Open navigation"
-        >
-          <I.Menu />
-        </button>
-        <button className="search" onClick={() => setPalette(true)}>
-          <I.Search />
-          <span>Search or run a command…</span>
-          <kbd>⌘ K</kbd>
-        </button>
+        <div className="header-left">
+          <button
+            className="mobile-menu"
+            onClick={() => setPalette(true)}
+            aria-label="Open navigation"
+          >
+            <I.Menu />
+          </button>
+          <div className="breadcrumb-tag">
+            <small>Studiux /</small>
+            <span>{page}</span>
+          </div>
+        </div>
+
         <div className="header-actions">
+          {state.active && page !== 'Focus' && (
+            <div
+              className="header-focus-dock"
+              onClick={() => navigate('Focus')}
+              title="Focus session in progress — click to view"
+            >
+              <span className="pulse-dot" style={{ width: 6, height: 6 }} />
+              <I.Timer style={{ width: 14, height: 14, color: 'var(--accent-text)' }} />
+              <span className="header-focus-time">
+                {formatDuration(elapsed(state.active, now))}
+              </span>
+            </div>
+          )}
+
+          <button className="search" onClick={() => setPalette(true)}>
+            <I.Search />
+            <span>Search or jump to…</span>
+            <kbd>⌘ K</kbd>
+          </button>
+
           <button
             className="icon-button notification-button"
             aria-label="Notifications"
             onClick={() => setNotifications(true)}
+            title="Notification Center"
           >
             <I.Inbox />
             {hasUnread && <i />}
@@ -334,24 +388,26 @@ function Palette({ close, go }) {
   const actions = [
     ['Start focus session', 'Focus', I.Play],
     ['Create a task', 'Tasks', I.Plus],
-    ['Open Today', 'Today', I.Target],
-    ['Open Planner', 'Plan', I.CalendarDays],
-    ['Open Revision', 'Revision', I.RotateCcw],
-    ['Add mock result', 'Mocks', I.BarChart3],
-    ['Open analytics', 'Progress', I.ChartNoAxesCombined],
-    ['Manage syllabus', 'Syllabus', I.BookOpen],
-    ['Change settings', 'Settings', I.Settings],
-    ['Toggle theme', 'Settings', I.Moon]
+    ['Open Today timeline', 'Today', I.Target],
+    ['Open Calendar planner', 'Plan', I.CalendarDays],
+    ['Open Spaced Revision', 'Revision', I.RotateCcw],
+    ['Record mock result', 'Mocks', I.BarChart3],
+    ['View analytics & metrics', 'Progress', I.ChartNoAxesCombined],
+    ['Manage syllabus chapters', 'Syllabus', I.BookOpen],
+    ['Target examinations', 'Exams', I.Trophy],
+    ['Study circles & groups', 'Groups', I.Users],
+    ['System settings', 'Settings', I.Settings],
+    ['Toggle light/dark theme', 'Settings', I.Moon]
   ];
 
   const term = query.trim().toLowerCase();
   const entities = term
     ? [
-        ...state.tasks.map(row => [row.title, 'Tasks', I.CheckSquare]),
-        ...state.subjects.map(row => [row.name, 'Syllabus', I.BookOpen]),
-        ...state.chapters.map(row => [row.name, 'Syllabus', I.BookOpen]),
-        ...state.mocks.map(row => [row.name, 'Mocks', I.BarChart3]),
-        ...state.mistakes.map(row => [row.notes || row.type, 'Mocks', I.BarChart3])
+        ...state.tasks.map(row => [`Task: ${row.title}`, 'Tasks', I.CheckSquare]),
+        ...state.subjects.map(row => [`Subject: ${row.name}`, 'Syllabus', I.BookOpen]),
+        ...state.chapters.map(row => [`Chapter: ${row.name}`, 'Syllabus', I.BookOpen]),
+        ...state.mocks.map(row => [`Mock: ${row.name}`, 'Mocks', I.BarChart3]),
+        ...state.mistakes.map(row => [`Mistake: ${row.notes || row.type}`, 'Mocks', I.BarChart3])
       ]
         .filter(([label]) => label?.toLowerCase().includes(term))
         .slice(0, 8)
@@ -363,8 +419,11 @@ function Palette({ close, go }) {
   ];
 
   const choose = ([label, page]) => {
-    if (label === 'Toggle theme') patch({ theme: state.theme === 'dark' ? 'light' : 'dark' });
-    else go(page);
+    if (label === 'Toggle light/dark theme') {
+      patch({ theme: state.theme === 'light' ? 'dark' : 'light' });
+    } else {
+      go(page);
+    }
     close();
   };
 
@@ -378,31 +437,31 @@ function Palette({ close, go }) {
         onMouseDown={e => e.stopPropagation()}
       >
         <div>
-          <I.Search />
+          <I.Search style={{ width: 18, height: 18, color: 'var(--accent-text)' }} />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Enter' && list[0]) choose(list[0]);
             }}
-            placeholder="Type a command or search…"
+            placeholder="Type a command, task, subject or mock…"
             autoFocus
           />
         </div>
-        <span className="eyebrow">{term ? 'Results' : 'Quick actions'}</span>
+        <span className="eyebrow">{term ? 'SEARCH RESULTS' : 'QUICK NAVIGATION'}</span>
         {list.map((item, index) => {
           const [label, , Icon] = item;
           return (
             <button key={`${label}-${index}`} onClick={() => choose(item)}>
               <Icon />
-              {label}
+              <span>{label}</span>
               {index === 0 && <kbd>↵</kbd>}
             </button>
           );
         })}
         {!list.length && (
           <div className="empty">
-            <p>No matching task, subject, chapter, mock or mistake.</p>
+            <p>No matching task, subject, chapter, or action found.</p>
           </div>
         )}
       </div>
@@ -415,7 +474,7 @@ function SubjectDot({ color }) {
 }
 
 function Home({ go }) {
-  const { state } = useStore();
+  const { state, patch } = useStore();
   const today = aggregate(
     state.sessions,
     studyDayKey(new Date(), state.profile.resetHour, state.profile.timezone),
@@ -427,7 +486,7 @@ function Home({ go }) {
   const activeTasks = state.tasks.filter(t => !t.done);
   const nowPriorityTask = activeTasks.sort((a, b) => (a.dueAt || Infinity) - (b.dueAt || Infinity))[0];
   const upcomingTasks = activeTasks.slice(1, 4);
-  const dueRevisions = state.revisionItems.filter(r => r.status !== 'COMPLETED').slice(0, 2);
+  const dueRevisions = state.revisionItems.filter(r => r.status !== 'COMPLETED').slice(0, 3);
 
   const week = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -450,71 +509,157 @@ function Home({ go }) {
     month: 'long'
   });
 
+  // Time-aware greeting
+  const currentHour = new Date().getHours();
+  const greeting =
+    currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
+
+  function completeTask(id) {
+    patch(s => ({
+      ...s,
+      tasks: s.tasks.map(t =>
+        t.id === id ? { ...t, done: true, status: 'DONE', completedAt: Date.now() } : t
+      )
+    }));
+  }
+
   return (
     <div className="home-layout">
-      {/* Main column */}
+      {/* Main command column */}
       <div className="home-main">
-        <div className="home-date">{dateStr}</div>
+        {/* Hero Study Banner */}
+        <div className="home-hero-card">
+          <div className="home-hero-top">
+            <div>
+              <span className="eyebrow">COMMAND CENTER</span>
+              <h2 className="home-greeting-title">
+                {greeting}, {state.profile?.name || 'Scholar'}
+              </h2>
+              <div className="home-hero-date">{dateStr}</div>
+            </div>
+            <div className="version-badge" style={{ alignSelf: 'flex-start' }}>
+              {pct}% GOAL
+            </div>
+          </div>
 
-        {/* Study duration — typography is the hero */}
-        <div className="home-studied">
-          <b>{formatDuration(today.duration)}</b>
-          <small>studied today</small>
+          <div className="home-hero-metrics">
+            <span className="home-hero-time">{formatDuration(today.duration)}</span>
+            <span className="home-hero-target">
+              studied today / <b>{formatDuration(target)}</b> target
+            </span>
+          </div>
+
+          <div className="progress-track">
+            <div
+              className="progress-track-fill"
+              style={{ width: `${Math.min(100, pct)}%` }}
+            />
+          </div>
+
+          <div className="progress-track-label">
+            <span>0m</span>
+            <span>{pct}% complete</span>
+            <span>{formatDuration(target)}</span>
+          </div>
+
+          <div className="home-hero-actions">
+            <button className="home-focus-btn" onClick={() => go('Focus')}>
+              <I.Play style={{ width: 16, height: 16 }} />
+              <span>{state.active ? 'Resume Focus Session' : 'Start Focus Session'}</span>
+              <kbd>Space</kbd>
+            </button>
+            <button className="btn-secondary" onClick={() => go('Plan')}>
+              <I.CalendarDays style={{ width: 15, height: 15 }} />
+              Plan Your Day
+            </button>
+          </div>
         </div>
 
-        {/* Horizontal progress track */}
-        <div className="progress-track">
-          <div
-            className="progress-track-fill"
-            style={{ width: `${Math.min(100, pct)}%` }}
-          />
-          <span className="progress-track-label">
-            {formatDuration(target)}
-          </span>
-        </div>
-
-        {/* Focus CTA */}
-        <button className="home-focus-btn" onClick={() => go('Focus')}>
-          <I.Play style={{ width: 15, height: 15, fill: 'currentColor' }} />
-          Start a focus session
-          <kbd>Space</kbd>
-        </button>
-
-        {/* Up next section */}
+        {/* Priority Focus Task Section */}
         <div className="home-section">
           <div className="home-section-head">
-            <h3>Up next</h3>
-            <button className="text-button" onClick={() => go('Tasks')}>All tasks →</button>
+            <h3>
+              <I.Target style={{ width: 16, height: 16, color: 'var(--accent-text)' }} />
+              Up next in queue
+            </h3>
+            <button className="text-button" onClick={() => go('Tasks')}>
+              All tasks ({activeTasks.length}) →
+            </button>
           </div>
 
           {nowPriorityTask ? (
             <>
               <div className="now-priority-card">
-                <div className="now-task-info">
-                  <b>{nowPriorityTask.title}</b>
-                  <div className="now-task-meta">
-                    {nowPriorityTask.subject && (
-                      <span className="subject-tag">
-                        <SubjectDot color={state.subjects.find(s => s.id === nowPriorityTask.subjectId)?.color} />
-                        {nowPriorityTask.subject}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                  <button
+                    className="check-mark"
+                    onClick={() => completeTask(nowPriorityTask.id)}
+                    title="Mark task as complete"
+                  >
+                    <I.Check style={{ width: 11, height: 11 }} />
+                  </button>
+                  <div className="now-task-info">
+                    <b>{nowPriorityTask.title}</b>
+                    <div className="now-task-meta">
+                      {nowPriorityTask.subject && (
+                        <span className="subject-tag">
+                          <SubjectDot
+                            color={
+                              state.subjects.find(s => s.id === nowPriorityTask.subjectId)?.color
+                            }
+                          />
+                          {nowPriorityTask.subject}
+                        </span>
+                      )}
+                      <span>
+                        <I.Clock style={{ width: 12, height: 12, display: 'inline', verticalAlign: '-1px' }} />{' '}
+                        {nowPriorityTask.estimate || 30}m
                       </span>
-                    )}
-                    <span>{nowPriorityTask.estimate || 30}m</span>
+                      {nowPriorityTask.priority && (
+                        <span
+                          className={`status-badge ${
+                            nowPriorityTask.priority === 'HIGH'
+                              ? 'text-danger'
+                              : nowPriorityTask.priority === 'MEDIUM'
+                              ? 'text-warning'
+                              : 'text-success'
+                          }`}
+                        >
+                          {nowPriorityTask.priority}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <button
                   className="primary"
-                  style={{ padding: '6px 12px', fontSize: 12 }}
+                  style={{ padding: '8px 14px', fontSize: 13 }}
                   onClick={() => go('Focus')}
                 >
-                  <I.Play style={{ width: 12, height: 12 }} /> Focus
+                  <I.Play style={{ width: 13, height: 13 }} /> Focus Now
                 </button>
               </div>
 
               {upcomingTasks.map(t => (
                 <div className="feed-row" key={t.id} onClick={() => go('Tasks')}>
+                  <button
+                    className="check-mark"
+                    onClick={e => {
+                      e.stopPropagation();
+                      completeTask(t.id);
+                    }}
+                    title="Mark complete"
+                  >
+                    <I.Check style={{ width: 10, height: 10 }} />
+                  </button>
                   <div className="feed-row-left">
-                    <span className="subject-dot" style={{ background: state.subjects.find(s => s.id === t.subjectId)?.color || 'var(--accent)' }} />
+                    <span
+                      className="subject-dot"
+                      style={{
+                        background:
+                          state.subjects.find(s => s.id === t.subjectId)?.color || 'var(--accent)'
+                      }}
+                    />
                     <b>{t.title}</b>
                   </div>
                   <span className="feed-row-meta">{t.estimate || 30}m</span>
@@ -522,95 +667,112 @@ function Home({ go }) {
               ))}
             </>
           ) : (
-            <p style={{ fontSize: 13 }}>
-              No tasks yet.{' '}
-              <button className="text-button" onClick={() => go('Tasks')}>Add a study task →</button>
-            </p>
+            <div className="empty">
+              <h3>All caught up!</h3>
+              <p>No active tasks remaining in your queue.</p>
+              <button className="primary" onClick={() => go('Tasks')}>
+                <I.Plus style={{ width: 14, height: 14 }} /> Create a Task
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Revision due */}
+        {/* Due Revision Section */}
         {dueRevisions.length > 0 && (
           <div className="home-section">
             <div className="home-section-head">
-              <h3>Revision due</h3>
-              <button className="text-button" onClick={() => go('Revision')}>Open →</button>
+              <h3>
+                <I.RotateCcw style={{ width: 16, height: 16, color: 'var(--warning)' }} />
+                Spaced Revision Due
+              </h3>
+              <button className="text-button" onClick={() => go('Revision')}>
+                Open Revision ({dueRevisions.length}) →
+              </button>
             </div>
             {dueRevisions.map(r => (
               <div className="feed-row" key={r.id} onClick={() => go('Revision')}>
                 <div className="feed-row-left">
-                  <I.RotateCcw style={{ width: 13, height: 13, color: 'var(--warning)' }} />
-                  <b>{r.targetTitle || 'Spaced Revision'}</b>
+                  <I.RotateCcw style={{ width: 14, height: 14, color: 'var(--warning)' }} />
+                  <b>{r.targetTitle || 'Spaced Revision Item'}</b>
                 </div>
-                <span className="feed-row-meta" style={{ color: 'var(--warning)' }}>Due today</span>
+                <span className="feed-row-meta" style={{ color: 'var(--warning)' }}>
+                  Due for review
+                </span>
               </div>
             ))}
           </div>
         )}
 
-        {/* Today's plan link */}
-        <div className="home-section">
-          <div className="home-section-head">
-            <h3>Today's plan</h3>
-            <button className="text-button" onClick={() => go('Plan')}>Open planner →</button>
+        {/* Quick Curriculum Shortcuts */}
+        <div className="dashboard-grid">
+          <div className="panel" onClick={() => go('Syllabus')} style={{ cursor: 'pointer' }}>
+            <div className="panel-title">
+              <h3>
+                <I.BookOpen style={{ width: 16, height: 16, color: 'var(--accent-text)' }} />
+                Syllabus Tracker
+              </h3>
+              <I.ArrowUpRight style={{ width: 14, height: 14, color: 'var(--ink-muted)' }} />
+            </div>
+            <p>
+              {state.subjects.length} subjects • {state.chapters.length} chapters mapped.
+            </p>
           </div>
-          {today.sessions > 0 ? (
-            <p style={{ fontSize: 13 }}>
-              {today.sessions} {today.sessions === 1 ? 'session' : 'sessions'} logged today.{' '}
-              <button className="text-button" onClick={() => go('Today')}>View timeline →</button>
+
+          <div className="panel" onClick={() => go('Mocks')} style={{ cursor: 'pointer' }}>
+            <div className="panel-title">
+              <h3>
+                <I.BarChart3 style={{ width: 16, height: 16, color: 'var(--info)' }} />
+                Mock Test Lab
+              </h3>
+              <I.ArrowUpRight style={{ width: 14, height: 14, color: 'var(--ink-muted)' }} />
+            </div>
+            <p>
+              {state.mocks.length} mock tests recorded • {state.mistakes.length} mistakes tagged.
             </p>
-          ) : (
-            <p style={{ fontSize: 13 }}>
-              No sessions yet today.{' '}
-              <button className="text-button" onClick={() => go('Focus')}>Start one →</button>
-            </p>
-          )}
+          </div>
         </div>
       </div>
 
       {/* Context sidebar */}
       <div className="home-context">
-        <div className="context-block">
-          <h4>Daily target</h4>
-          <div className="context-value">{formatDuration(target)}</div>
-          <div className="context-label">{pct}% complete</div>
-        </div>
-
-        <div className="context-block">
-          <h4>Sessions</h4>
-          <div className="context-value">{today.sessions}</div>
-        </div>
-
-        <div className="context-block">
-          <h4>Questions</h4>
-          <div className="context-value">{today.questions}</div>
-        </div>
-
-        <div className="context-block">
-          <h4>Focus score</h4>
-          <div className="context-value">
-            {today.sessions ? Math.round(today.focus / today.sessions) : '—'}
-          </div>
-          <div className="context-label">out of 100</div>
-        </div>
-
-        <div className="context-block">
-          <h4>Resets at</h4>
-          <div className="context-label">
-            {String(state.profile.resetHour).padStart(2, '0')}:00
+        <div className="stat-metric-card">
+          <h4>Daily Goal Status</h4>
+          <div className="stat-value">{pct}%</div>
+          <div className="stat-sub">
+            {formatDuration(today.duration)} / {formatDuration(target)}
           </div>
         </div>
 
-        {/* Mini week chart */}
-        <div className="context-block">
-          <h4>This week</h4>
+        <div className="stat-metric-card">
+          <h4>Sessions Completed</h4>
+          <div className="stat-value">{today.sessions}</div>
+          <div className="stat-sub">Recorded deep study sessions</div>
+        </div>
+
+        <div className="stat-metric-card">
+          <h4>Questions Solved</h4>
+          <div className="stat-value">{today.questions}</div>
+          <div className="stat-sub">Practice problems today</div>
+        </div>
+
+        <div className="stat-metric-card">
+          <h4>Focus Quality</h4>
+          <div className="stat-value">
+            {today.sessions ? `${Math.round(today.focus / today.sessions)}/100` : '—'}
+          </div>
+          <div className="stat-sub">Tab discipline & rating average</div>
+        </div>
+
+        {/* 7-Day Study Rhythm Chart */}
+        <div className="stat-metric-card">
+          <h4>7-Day Study Rhythm</h4>
           <div className="mini-bars">
             {week.map(x => (
               <div
                 key={x.d.toISOString()}
                 className={x.value > 0 ? 'mini-bar' : 'mini-bar mini-bar-empty'}
-                style={{ height: `${Math.max(6, (x.value / maxWeek) * 100)}%` }}
-                title={`${x.d.toLocaleDateString()}: ${formatDuration(x.value)}`}
+                style={{ height: `${Math.max(8, (x.value / maxWeek) * 100)}%` }}
+                title={`${x.d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${formatDuration(x.value)}`}
               />
             ))}
           </div>
@@ -620,6 +782,9 @@ function Home({ go }) {
                 {x.d.toLocaleDateString(undefined, { weekday: 'narrow' })}
               </small>
             ))}
+          </div>
+          <div className="stat-sub" style={{ marginTop: 8 }}>
+            Day resets at {String(state.profile.resetHour).padStart(2, '0')}:00
           </div>
         </div>
       </div>
@@ -645,7 +810,10 @@ function Gate() {
     return (
       <main className="auth-loading">
         <BrandLogo size="lg" showTagline layout="vertical" />
-        <p style={{ marginTop: '20px' }}>Restoring your study space…</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 20 }}>
+          <span className="pulse-dot" style={{ width: 8, height: 8 }} />
+          <p>Restoring your secure study space…</p>
+        </div>
       </main>
     );
 
@@ -655,7 +823,9 @@ function Gate() {
     return (
       <main className="auth-loading">
         <BrandLogo size="lg" showTagline layout="vertical" />
-        <p style={{ marginTop: '20px' }}>Your study space could not be opened. Reload to retry.</p>
+        <p style={{ marginTop: 20, color: 'var(--danger)' }}>
+          Your study space could not be opened. Please reload to retry.
+        </p>
       </main>
     );
 
